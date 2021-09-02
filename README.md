@@ -1,4 +1,4 @@
-# EventTransScriptParser
+# EventTranscriptParser
 
 **EventTranscriptParser** is python based tool to extract forensically useful details from EventTranscript.db (Windows Diagnostic Database).
 
@@ -10,13 +10,13 @@ The tool currently supports the following features.
 + Extracting list of software/programs installed on the host system.
 + Extracting Wireless Scan results.
 + Extracting WiFi connection details (SSIDs, device manufacturers etc...)
-+ Extracting Physcial Disk information (Disk size, No. of partitions etc...)
++ Extracting Physical Disk information (Disk size, No. of partitions etc...)
 + Extracting PnP device installation information (Install time, Model, Manufacturer etc...)
 + MORE COMING SOON!!
 
 ### Requirements
 
-Python 3.8 or above. Older version of Python 3.x should work fine as well.
+Python 3.8 or above. The older versions of Python 3.x should work fine as well.
 
 #### Dependencies
 
@@ -41,7 +41,7 @@ python EventTranscriptParser.py -f <Path-To-EventTranscript.db>
 
 ### Acknowledgements
 
-This tool wouldn't have been possible without the excellent research & hardwork put in by my colleagues [Andrew Rathbun](https://twitter.com/bunsofwrath12) & [Josh Mitchell](https://www.linkedin.com/in/josh-mitchell-0990ba6a/) in investigating the Windows Diagnostic Data.
+This tool wouldn't have been possible without the excellent research & hard work put in by my colleagues [Andrew Rathbun](https://twitter.com/bunsofwrath12) & [Josh Mitchell](https://www.linkedin.com/in/josh-mitchell-0990ba6a/) in investigating the Windows Diagnostic Data.
 
 Read more about their research here - https://github.com/rathbuna/EventTranscript.db-Research
 
