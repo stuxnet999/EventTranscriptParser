@@ -45,6 +45,8 @@ This tool wouldn't have been possible without the excellent research & hard work
 
 Read more about their research here - https://github.com/rathbuna/EventTranscript.db-Research
 
+Follow the investigative series at Kroll on EventTranscript.db - https://www.kroll.com/en/insights/publications/cyber/forensically-unpacking-eventtranscript
+
 ### Author
 
 Abhiram Kumar
