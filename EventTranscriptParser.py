@@ -176,7 +176,6 @@ def PnPDeviceParse(f):
     return pnp_device_dict
 
 
-
 if __name__=="__main__":
 
     event_transcript_parser=argparse.ArgumentParser(
@@ -184,48 +183,63 @@ if __name__=="__main__":
     epilog= '''For any queries, please reach out to me via Twitter - @_abhiramkumar''')
     
     event_transcript_parser.add_argument('-f','--file', required=True, help="Please specify the path to EventTranscript.db")
+    event_transcript_parser.add_argument('-o','--output-dir', required=True, help="Please specify the output directory")
     
     parser, empty_list = event_transcript_parser.parse_known_args()
 
+
+    print("""\033[1;97m  _____                 _     _____                              _       _     ____                          
+ | ____|_   _____ _ __ | |_  |_   _| __ __ _ _ __  ___  ___ _ __(_)_ __ | |_  |  _ \ __ _ _ __ ___  ___ _ __ 
+ |  _| \ \ / / _ \ '_ \| __|   | || '__/ _` | '_ \/ __|/ __| '__| | '_ \| __| | |_) / _` | '__/ __|/ _ \ '__|
+ | |___ \ V /  __/ | | | |_    | || | | (_| | | | \__ \ (__| |  | | |_) | |_  |  __/ (_| | |  \__ \  __/ |   
+ |_____| \_/ \___|_| |_|\__|   |_||_|  \__,_|_| |_|___/\___|_|  |_| .__/ \__| |_|   \__,_|_|  |___/\___|_|   
+                                                                  |_|                                        \033[0m\n""")
+    
+    print("Author: Abhiram Kumar (Twitter: @_abhiramkumar)\nGithub: https://github.com/stuxnet999/EventTranscriptParser\n")
+    print("-"*50)
+
     if os.path.exists(parser.file):
+        if not os.path.isdir(parser.output_dir):
+            os.makedirs(parser.output_dir)
+
         BrowsingHistory = BrowserHistoryParse(parser.file)
         df = pd.DataFrame(BrowsingHistory)
-        outfile = "BrowserHistory.csv"
+        outfile = os.path.join(parser.output_dir, "BrowserHistory.csv")
         df.to_csv(outfile, index=False) 
-        print ("Output written to " + outfile)
+        print ("Output written to " + os.path.abspath(outfile))
 
         software_inventory = SoftwareInventory(parser.file)
         df = pd.DataFrame(software_inventory)
-        outfile = "SoftwareInventory.csv"
+        outfile = os.path.join(parser.output_dir, "SoftwareInventory.csv")
         df.to_csv(outfile, index=False)
-        print ("Output written to " + outfile)
+        print ("Output written to " + os.path.abspath(outfile))
 
         WlanScan = WlanScanResults(parser.file)
         df = pd.DataFrame(WlanScan)
-        outfile = "WlanScan.csv"
+        outfile = os.path.join(parser.output_dir, "WlanScan.csv")
         df.to_csv(outfile, index=False)
-        print ("Output written to " + outfile)
+        print ("Output written to " + os.path.abspath(outfile))
 
         pnp_device = PnPDeviceParse(parser.file)
         df = pd.DataFrame(pnp_device)
-        outfile = "PnpDeviceInstall.csv"
+        outfile = os.path.join(parser.output_dir, "PnpDeviceInstall.csv")
         df.to_csv(outfile, index=False)
-        print ("Output written to " + outfile)
+        print ("Output written to " + os.path.abspath(outfile))
         
         wificonnectedevents = WiFiConnectedEvents(parser.file)
         df = pd.DataFrame(wificonnectedevents)
-        outfile = "WiFiConnectedEvents.csv"
+        outfile = os.path.join(parser.output_dir, "WiFiConnectedEvents.csv")
         df.to_csv(outfile, index=False)
-        print ("Output written to " + outfile)
+        print ("Output written to " + os.path.abspath(outfile))
 
-        outfile = "UserDefaults.txt"
-        userdefaults = UserDefault(os.path.abspath(parser.file), outfile)
-        print("Output written to "+ outfile)
+        outfile = os.path.join(parser.output_dir, "UserDefaults.txt")
+        userdefaults = UserDefault(parser.file, outfile)
+        print ("Output written to " + os.path.abspath(outfile))
         userdefaults.close()
             
-        outfile = "PhysicalDiskInfo.txt"
+        outfile = os.path.join(parser.output_dir, "PhysicalDiskInfo.txt")
         physical_disk_info = PhysicalDiskInfo(parser.file, outfile)
-        print("Output written to "+ outfile)
+        print ("Output written to " + os.path.abspath(outfile))
         physical_disk_info.close()
 
     else:

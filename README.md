@@ -1,4 +1,6 @@
-# EventTranscriptParser
+![logo](./img/logo.png)
+
+### About
 
 **EventTranscriptParser** is python based tool to extract forensically useful details from EventTranscript.db (Windows Diagnostic Database).
 
@@ -20,7 +22,7 @@ Python 3.8 or above. The older versions of Python 3.x should work fine as well.
 
 #### Dependencies
 
-These are the required libraries/modules needed to run the script
+These are the required python libraries/modules needed to run the script
 + json
 + sqlite3
 + pandas
@@ -32,12 +34,18 @@ These are the required libraries/modules needed to run the script
 The tool is completely CLI based.
 
 ```python
-python EventTranscriptParser.py -f <Path-To-EventTranscript.db>
+python EventTranscriptParser.py -f <Path-To-EventTranscript.db> -o <Path-To-Output-Directory>
 ```
+![usage](./img/usage.png)
 
 **Tip**: Before running the tool against the database, make sure that the **-wal (Write Ahead Log)** file data is merged with the original database. Because you might miss out on crucial/juicy data.
 
-![usage](./img/usage.png)
+To view help,
+```
+python EventTranscriptParser.py -h
+```
+
+![help](./img/help.png)
 
 ### Acknowledgements
 
