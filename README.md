@@ -29,16 +29,27 @@ These are the required python libraries/modules needed to run the script
 + os
 + argparse
 
+All the above modules are available by default in python3 except **Pandas**.
+
+To install pandas, use `pip` via command prompt/terminal.
+
+```sh
+pip install pandas
+```
+
 ### Usage
 
-The tool is completely CLI based.
+**Tip**: Before running the tool against the database, make sure that the **-wal (Write Ahead Log)** file data is merged with the original database. Because you might miss out on crucial/juicy data.
+
+The tool is completely CLI based and there are 2 ways to use it.
+
+#### Using Python
 
 ```python
 python EventTranscriptParser.py -f <Path-To-EventTranscript.db> -o <Path-To-Output-Directory>
 ```
 ![usage](./img/usage.png)
 
-**Tip**: Before running the tool against the database, make sure that the **-wal (Write Ahead Log)** file data is merged with the original database. Because you might miss out on crucial/juicy data.
 
 To view help,
 ```
@@ -46,6 +57,31 @@ python EventTranscriptParser.py -h
 ```
 
 ![help](./img/help.png)
+
+#### Using Executable
+
+If you do not have python pre-installed in you system or have issues with the running the script, you can use the compiled executable. The executable is also CLI based.
+
+Download the executable from https://github.com/stuxnet999/EventTranscriptParser/releases
+
+```sh
+.\EventTranscriptParser.exe -f .\EventTranscript.db -o .\CSV-Output\
+```
+
+![exe-usage](./img/exe-usage.png)
+
+The executable was compiled using `pyinstaller` version **4.5.1**.
+
+#### Compiling on your own
+
+If you wish to compile on your own, use the commands below in any command prompt/terminal window.
+
+```sh
+pip install pyinstaller
+pyinstaller --onefile EventTranscriptParser.py
+```
+
+You will find the compiled executable in the `dist` directory.
 
 ### Acknowledgements
 
