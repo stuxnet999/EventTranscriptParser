@@ -8,13 +8,15 @@ The database is found in Windows 10 systems and present at `C:\ProgramData\Micro
 
 The tool currently supports the following features.
 
-+ Extracting MS Edge browser history.
-+ Extracting list of software/programs installed on the host system.
-+ Extracting Wireless Scan results.
-+ Extracting WiFi connection details (SSIDs, device manufacturers etc...)
-+ Extracting Physical Disk information (Disk size, No. of partitions etc...)
-+ Extracting PnP device installation information (Install time, Model, Manufacturer etc...)
-+ MORE COMING SOON!!
++ Extracts Microsoft Edge browsing history
++ Extracts application inventory
++ Extracts Wireless scan results.
++ Extracts successful WiFi connection events
++ Extracts User's default preferences (Video player, default browser etc...)
++ Extracts SRUM information
+    + Application execution
+    + Application network usage
++ Extracts Application execution activity
 
 ### Requirements
 
@@ -23,18 +25,17 @@ Python 3.8 or above. The older versions of Python 3.x should work fine as well.
 #### Dependencies
 
 These are the required python libraries/modules needed to run the script
+
 + json
-+ sqlite3
-+ pandas
 + os
++ sqlalchemy
++ csv
 + argparse
 
-All the above modules are available by default in python3 except **Pandas**.
+All the above modules are available by default in python3. Incase one or the other is missing, you can install by
 
-To install pandas, use `pip` via command prompt/terminal.
-
-```sh
-pip install pandas
+```
+pip install <package-name>
 ```
 
 ### Usage
@@ -46,14 +47,14 @@ The tool is completely CLI based and there are 2 ways to use it.
 #### Using Python
 
 ```python
-python EventTranscriptParser.py -f <Path-To-EventTranscript.db> -o <Path-To-Output-Directory>
+python3 EventTranscriptParser.py -f <Path-To-EventTranscript.db> -o <Path-To-Output-Directory>
 ```
 ![usage](./img/usage.png)
 
 
 To view help,
 ```
-python EventTranscriptParser.py -h
+python3 EventTranscriptParser.py -h
 ```
 
 ![help](./img/help.png)
@@ -68,9 +69,7 @@ Download the executable from https://github.com/stuxnet999/EventTranscriptParser
 .\EventTranscriptParser.exe -f .\EventTranscript.db -o .\CSV-Output\
 ```
 
-![exe-usage](./img/exe-usage.png)
-
-The executable was compiled using `pyinstaller` version **4.5.1**.
+The executable was compiled using `pyinstaller`.
 
 #### Compiling on your own
 

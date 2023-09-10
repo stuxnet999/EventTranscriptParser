@@ -1,246 +1,277 @@
-__author__ = "Abhiram Kumar" 
+__author__ = "Abhiram Kumar P (stuxnet999)"
 
 import json
-import pandas as pd
-import sqlite3
-import argparse
 import os
+from unittest import result
+import sqlalchemy as sql
+import sqlalchemy.orm as sql_orm
+import csv
+import argparse
 
-def BrowserHistoryParse(f):
-    conn = sqlite3.connect(f)
-    cursor = conn.cursor()
-    BrowserHistoryTable = pd.read_sql_query("SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where tag_descriptions.tag_id = 1", conn)
-    payload = BrowserHistoryTable['payload'].values.tolist()
-    sid = BrowserHistoryTable['sid'].values.tolist()
-    payload_navigation_URL = []
-    payload_navigation_URL_time = []
-    payload_navigation_URL_date = []
-    true_sid = []
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        if (temp['data'].__contains__("navigationUrl") == True) and len(temp['data']['navigationUrl']) > 0: 
-            payload_navigation_URL.append(temp['data']['navigationUrl'])
-            true_sid.append(sid[i])
-            timestamp = (temp['data']['Timestamp']).replace("T", " ").replace("Z", "")
-            timestamp = timestamp.split(" ")
-            payload_navigation_URL_date.append(timestamp[0])
-            payload_navigation_URL_time.append(timestamp[1] + " UTC")
+def EdgeBrowsingHistory(session, output_directory):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = "1" and events_persisted.full_event_name LIKE "%Aria.218d658af29e41b6bc37144bd03f018d.Microsoft.WebBrowser.HistoryJournal%")'))
+    history_events = result.fetchall()
 
-    temp_dict = {'SID': true_sid,'Date': payload_navigation_URL_date, 'Time': payload_navigation_URL_time, 'VisitedURL': payload_navigation_URL}
-    return temp_dict
+    if len(history_events) == 0:
+        print("Microsoft Edge browsing history events not recorded in this database. Will not create CSV")
+        return
+    else:
+        print("{} events related to browsing history from MS Edge found. Extracting & writing to CSV. Note - Some events might not contain URLs and will be skipped.".format(len(history_events)))
+        browsinghistory_csv = open(os.path.join(output_directory, "Edge Browsing History.csv"), "w", newline='')
+        browsinghistory_csv_writer = csv.writer(browsinghistory_csv, dialect='excel')
+        browsinghistory_csv_writer.writerow(["Visited URL", "Visit Timestamp (UTC)", "Refer URL", "SID"])
 
-def SoftwareInventory(f):
-    conn = sqlite3.connect(f)
-    SoftwareInventoryTable = pd.read_sql_query("""SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 31 and events_persisted.full_event_name="Microsoft.Windows.Inventory.Core.InventoryApplicationAdd")""", conn)
-    payload = SoftwareInventoryTable['payload'].values.tolist()
-    sid = SoftwareInventoryTable['sid'].values.tolist()
-    Program_Name = []
-    Path = []
-    OSVersionAtInstallTime = []
-    InstallDate = []
-    AppVersion = []
-    true_sid = []
+        for events in history_events:
+            row_list = []
+            temp_json = json.loads(events[1])
 
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        Program_Name.append(temp['data']['Name'])
-        Path.append(temp['data']['RootDirPath'])
-        OSVersionAtInstallTime.append(temp['data']['OSVersionAtInstallTime'])
-        if len(temp['data']['InstallDate']) > 0:
-            InstallDate.append(temp['data']['InstallDate'] + " UTC")
-        else:
-            InstallDate.append("NULL")
-        AppVersion.append(temp['data']['Version'])
-        true_sid.append(sid[i])
+            if 'navigationUrl' in temp_json['data']:
+                row_list.append(temp_json['data']['navigationUrl'])
+                row_list.append(temp_json['data']['Timestamp'].replace("T"," ").replace("Z",""))
 
-    SoftwareInventorydict = {'SID': true_sid, 'Program Name': Program_Name, 'Install Path': Path, 'Install Date': InstallDate, 'Program Version': AppVersion, 'OS Version at Install Time': OSVersionAtInstallTime}
-    return SoftwareInventorydict
+                if 'referUrl' in temp_json['data']:
+                    row_list.append(temp_json['data']['referUrl'])
+                else:
+                    row_list.append("")
+                
+                row_list.append(events[0])
+                browsinghistory_csv_writer.writerow(row_list)
+        browsinghistory_csv.close()
+    return
 
-def WlanScanResults(f):
-    conn = sqlite3.connect(f)
-    cursor = conn.cursor()
-    wlan_scan_results_table = pd.read_sql_query("""SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "WlanMSM.WirelessScanResults")""", conn)
-    payload = wlan_scan_results_table['payload'].values.tolist()
-    sid = wlan_scan_results_table['sid'].values.tolist()
-    ssid = []
-    mac_addr = []
-    time = []
-    true_sid = []
+def ApplicationInventory(session, output_directory):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 31 and events_persisted.full_event_name="Microsoft.Windows.Inventory.Core.InventoryApplicationAdd")'))
+    application_inventory = result.fetchall()
 
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        scan_results_list = temp['data']['ScanResults'].split('\n')
-        for j in range(len(scan_results_list) - 1):
-            temp_list = scan_results_list[j].split('\t')
-            ssid.append(temp_list[0])
-            mac_addr.append(temp_list[2])
-            time.append(temp['time'])
-            true_sid.append(sid[i])
+    if len(application_inventory) == 0:
+        print("Application inventory events not recorded in this database. Will not create CSV")
+    else:
+        print("{} events related to application inventory found. Extracting & writing to CSV".format(len(application_inventory)))
+        application_inventory_csv = open(os.path.join(output_directory,"Application Inventory.csv"),"w", newline='')
+        application_inventory_csv_writer = csv.writer(application_inventory_csv, dialect='excel')
+        application_inventory_csv_writer.writerow(["Application Name", "Installation Directory", "Installation Timestamp (UTC)", "Publisher", "Application Version", "SID"])
 
-    WlanScanDict = {'SID': true_sid, 'Time': time, 'SSID': ssid, 'MAC Address': mac_addr}
-    return WlanScanDict
+        for apps in application_inventory:
+            row_list = []
+            temp_json = json.loads(apps[1])
+            row_list.append(temp_json['data']['Name'])
+            row_list.append(temp_json['data']['RootDirPath'])
+            row_list.append(temp_json['data']['InstallDate'])
+            row_list.append(temp_json['data']['Publisher'])
+            row_list.append(temp_json['data']['Version'])
+            row_list.append(apps[0])
+            if len(set(row_list)) != 1:
+                application_inventory_csv_writer.writerow(row_list)
+        application_inventory_csv.close()
+    return
 
-def UserDefault(f, file):
-    conn = sqlite3.connect(f)
-    user_default_table = pd.read_sql_query("""SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Census.Userdefault")""", conn)
-    payload = user_default_table['payload'].values.tolist()
-    sid = user_default_table['sid'].values.tolist()
-    true_sid = []
-    temp_file = open(file, "w")
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        temp_file.write("Device Make: " + temp['ext']['protocol']['devMake'] + "\n")
-        temp_file.write("Device Model: "+ temp['ext']['protocol']['devModel']+ "\n")
-        temp_file.write("Timezone: "+ temp['ext']['loc']['tz'] + "\n")
-        true_sid.append(sid[i])
-        temp_file.write("Default Browser: "+ temp['data']['DefaultBrowserProgId'] + "\n")
-        temp_list = temp['data']['DefaultApp'].split('|')
-        for j in range(len(temp_list)):
-            temp_file.write(temp_list[j]+ "\n")
-        temp_file.write("----------------------------------\n\n")
-    return temp_file
+def ApplicationExecution(session, output_directory):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 25 and events_persisted.full_event_name="Win32kTraceLogging.AppInteractivitySummary")'))
+    execution_list = result.fetchall()
 
-def PhysicalDiskInfo(f, file):
-    conn = sqlite3.connect(f)
-    physicaldisk_info_table = pd.read_sql_query("""SELECT events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Microsoft.Windows.Inventory.General.InventoryMiscellaneousPhysicalDiskInfoAdd")""", conn)
-    payload = physicaldisk_info_table['payload'].values.tolist()
-    temp_file = open(file, "w")
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        temp_file.write("Device Id: "+ temp['data']['DeviceId'] + "\n")
-        temp_file.write("Serial Number: "+ temp['data']['SerialNumber'] + "\n")
-        temp_file.write("Size (in bytes): "+ temp['data']['Size'] + "\n")
-        temp_file.write("Number of partitions: "+ str(temp['data']['NumPartitions']) + "\n")
-        temp_file.write("Bytes per sector: "+ str(temp['data']['BytesPerSector']) + "\n")
-        temp_file.write("Media type: "+ temp['data']['MediaType'] + "\n")
-        temp_file.write("----------------------------------\n\n")
-    return temp_file
+    if len(execution_list) == 0:
+        print("Win32k.TraceLogging.AppInteractivitySummary not recorded in this database. Will not create CSV")
+    else:
+        print("{} events related to application execution found. Extracting & writing to CSV".format(len(execution_list)))
+        execution_list_csv = open(os.path.join(output_directory, "Application Execution.csv"), "w", newline='')
+        execution_list_csv_writer = csv.writer(execution_list_csv, dialect='excel')
+        execution_list_csv_writer.writerow(["Binary Name", "Execution Timestamp (UTC)", "SHA1 Hash", "Compiler Timestamp (UTC)", "SID"])
 
-def WiFiConnectedEvents(f):
-    conn = sqlite3.connect(f)
-    wifi_connected_events_table = pd.read_sql_query("""SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Microsoft.OneCore.NetworkingTriage.GetConnected.WiFiConnectedEvent")""", conn)
-    payload = wifi_connected_events_table['payload'].values.tolist()
-    sid = wifi_connected_events_table['sid'].values.tolist()
-    interfaceGuid = []
-    interfaceType = []
-    interfaceDescription = []
-    ssid = []
-    authAlgo = []
-    bssid = []
-    apManufacturer = []
-    apModelName = []
-    apModelNum = []
-    true_sid = []
+        for binaries in execution_list:
+            row_list = []
+            temp_json = json.loads(binaries[1])
+            temp_binary_list = temp_json['data']['AppId'].split('!')
 
-    for i in range(len(payload)):
-        temp = json.loads(payload[i])
-        interfaceGuid.append(temp['data']['interfaceGuid'])
-        interfaceType.append(temp['data']['interfaceType'])
-        interfaceDescription.append(temp['data']['interfaceDescription'])
-        ssid.append(temp['data']['ssid'])
-        authAlgo.append(temp['data']['authAlgo'])
-        bssid.append(temp['data']['bssid'])
-        apManufacturer.append(temp['data']['apManufacturer'])
-        apModelName.append(temp['data']['apModelName'])
-        apModelNum.append(temp['data']['apModelNum'])
-        true_sid.append(sid[i])
+            if temp_binary_list[0][0] == "W":
+                binary_hash = temp_binary_list[1][4:]
+                compiler_timestamp = temp_json['data']['AppVersion'].split('!')[0].replace("/","-").replace(":", " ", 1)
+                binary_name = temp_json['data']['AppVersion'].split('!')[2]
+            elif temp_binary_list[0][0] == "U":
+                binary_hash = ""
+                compiler_timestamp = temp_json['data']['AppVersion'].split('!')[1].replace("/","-").replace(":", " ", 1)
+                binary_name = temp_json['data']['AppVersion'].split('!')[3]
 
-    wifi_connected_results_dict = {'SID': true_sid, 'SSID': ssid, 'BSSID': bssid, 'AP Manufacturer': apManufacturer, 'AP Model Name': apModelName, 'AP Model No.': apModelNum, 'Interface Type': interfaceType, 'Interface GUID': interfaceGuid, 'Interface Description': interfaceDescription}
-    return wifi_connected_results_dict
+            row_list.append(binary_name)
+            row_list.append(temp_json['time'].replace("T"," ").replace("Z",""))
+            row_list.append(binary_hash)
+            row_list.append(compiler_timestamp)
+            row_list.append(binaries[0])
+            execution_list_csv_writer.writerow(row_list)
+        execution_list_csv.close()
+    return
 
-def PnPDeviceParse(f):
-    conn = sqlite3.connect(f)
-    pnp_device_table = pd.read_sql_query("""SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Microsoft.Windows.Inventory.Core.InventoryDevicePnpAdd")""", conn)
-    payload = pnp_device_table['payload'].values.tolist()
-    sid = pnp_device_table['sid'].values.tolist()
-    true_sid = []
-    installdate = []
-    firstinstalldate = []
-    model = []
-    manufacturer = []
-    service = []
-    parent_id = []
-    object_id = []
+def UserDefaults(session, txt_dir):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Census.Userdefault")'))
+    defaults_list = result.fetchall()
+    if len(defaults_list) == 0:
+        print("Device census events relating to user default settings not recorded in database. Will not create text file")
+    else:
+        print("{} events related to user default app preferences found. Extracting and writing to text file".format(len(defaults_list)))
+        userdefaults_file = open(os.path.join(txt_dir, "UserDefaults.txt"), "w")
+        for defaults in defaults_list:
+            temp_json = json.loads(defaults[1])
+            userdefaults_file.write("====Record Start====\n")
+            userdefaults_file.write("Recorded at: " + temp_json['time'].replace("T", " ").replace("Z", "") + "\n")
+            userdefaults_file.write("Default browser: " + temp_json['data']['DefaultBrowserProgId'] + "\n")
+            userdefaults_file.write("---Default Apps---")
+            temp_list = temp_json['data']['DefaultApp'].split('|')
+            for apps in temp_list:
+                userdefaults_file.write(apps + "\n")
+            userdefaults_file.write("====Record End====\n")
+        userdefaults_file.close()
+    return
 
-    for i in range(len(payload)):
-        temp = json.loads(payload[i].encode('unicode_escape'))
-        true_sid.append(sid[i])
-        parent_id.append(temp['data']['ParentId'])
-        object_id.append(temp['data']['baseData']['objectInstanceId'])
-        installdate.append(temp['data']['InstallDate'])
-        firstinstalldate.append(temp['data']['FirstInstallDate'])
-        model.append(temp['data']['Model'])
-        manufacturer.append(temp['data']['Manufacturer'])
-        service.append(temp['data']['Service'])
-    pnp_device_dict = {'SID': true_sid, 'Object ID': object_id, 'Install Date': installdate, 'First Install Date': firstinstalldate, 'Model': model, 'Manufacturer': manufacturer, 'Service': service, 'Parent ID': parent_id}
-    return pnp_device_dict
+def WiFiConnectedEvents(session, csv_dir):
+    result = session.execute(sql.text('SELECT events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "Microsoft.OneCore.NetworkingTriage.GetConnected.WiFiConnectedEvent")'))
+    wifi_connections_list = result.fetchall()
 
+    if len(wifi_connections_list) == 0:
+        print("WiFi connection events have not been recorded in the database. Will not create CSV")
+    else:
+        print("{} events associated with successful WiFi connections found. Extracting and writing to CSV".format(len(wifi_connections_list)))
+
+        wifi_connections_file = open(os.path.join(csv_dir, "WiFi Successful Connections.csv"), "w", newline='')
+        wifi_connections_csv_writer = csv.writer(wifi_connections_file, dialect='excel')
+        wifi_connections_csv_writer.writerow(["WiFi SSID", "WiFi BSSID", "WiFi Connection Time (UTC)", "AP Manufacturer", "AP Model Name", "AP Model No.", "Authentication Algorithm", "Cipher Algo"])
+
+        for wifi in wifi_connections_list:
+            row_list = []
+            temp_json = json.loads(wifi[0])
+            row_list.append(temp_json['data']['ssid'])
+            row_list.append(temp_json['data']['bssid'])
+            row_list.append(temp_json['time'].replace('T', " ").replace('Z', ""))
+            row_list.append(temp_json['data']['apManufacturer'])
+            row_list.append(temp_json['data']['apModelName'])
+            row_list.append(temp_json['data']['apModelNum'])
+            row_list.append(temp_json['data']['authAlgo'])
+            row_list.append(temp_json['data']['cipherAlgo'])
+            wifi_connections_csv_writer.writerow(row_list)
+        wifi_connections_file.close()
+    return
+
+def SRUMAppActivity(session, csv_dir):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 24 and events_persisted.full_event_name = "Microsoft.Windows.SRUM.Telemetry.AppTimelines")'))
+    srum_app_activity_list = result.fetchall()
+
+    if (len(srum_app_activity_list) == 0):
+        print("Application activity fetched from SRUM not recorded in database. Will not create CSV")
+    else:
+        print("{} events associated with application activity within SRUM found. Extracting and writing to CSV".format(len(srum_app_activity_list)))
+        SRUMAppActivity_file = open(os.path.join(csv_dir, "SRUM Application Execution Activity.csv"), "w", newline='')
+        SRUMAppActivity_csv_writer = csv.writer(SRUMAppActivity_file, dialect='excel')
+
+        SRUMAppActivity_csv_writer.writerow(["SID", "EventTranscriptDB Record Time (UTC)", "Application Start Time (UTC)", "Application Name", "Compiler Timestamp (UTC)"])
+
+        for event in srum_app_activity_list:
+            temp_json = json.loads(event[1])
+
+            for apps in temp_json['data']['records']:
+                row_list = []
+                row_list.append(event[0])
+                row_list.append(temp_json['time'].replace("T", " ").replace("Z",""))
+                row_list.append(apps['startTime'].replace("T", " ").replace("z", ""))
+
+                if "W:" in apps['appId']:
+                    row_list.append(apps['appId'][4:])
+                    row_list.append(apps['appVer'].split('!', 1)[0].replace("/", "-").replace(":", " ", 1))
+                elif "U:" in apps['appId']:
+                    row_list.append(apps['appId'][2:])
+                    row_list.append(apps['appVer'].split('!')[1].replace("/", "-").replace(":", " ", 1))
+                else:
+                    row_list.append(apps['appId'])
+                    row_list.append("N/A")
+                SRUMAppActivity_csv_writer.writerow(row_list)
+        SRUMAppActivity_file.close()
+    return
+
+def WLANScanResults(session, csv_dir):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 11 and events_persisted.full_event_name = "WlanMSM.WirelessScanResults")'))
+    wlan_scan_list = result.fetchall()
+
+    if len(wlan_scan_list) == 0:
+        print("Events associated with WLAN (WiFi) scan not recorded in database. Will not create CSV")
+    else:
+        print("{} events associated to WLAN scan found in database. Extracting and writing to CSV".format((len(wlan_scan_list))))
+
+        wlan_scan_file = open(os.path.join(csv_dir, "WLAN Scan Results.csv"), "w", newline='')
+        wlan_scan_csv_writer = csv.writer(wlan_scan_file, dialect='excel')
+
+        wlan_scan_csv_writer.writerow(["SSID", "MAC Address", "Scan Record Timestamp (UTC)", "Interface GUID"])
+
+        for scan in wlan_scan_list:
+            temp_json = json.loads(scan[1])
+
+            for devices in temp_json['data']['ScanResults'].split('\n'):
+                row_list = []
+                wlan_scan_entry = devices.split('\t')
+                if wlan_scan_entry[0] != '':
+                    row_list.append(wlan_scan_entry[0])
+                    row_list.append(wlan_scan_entry[2])
+                    row_list.append(temp_json['time'].replace("T", " ").replace("Z", ""))
+                    row_list.append(temp_json['data']['InterfaceGuid'])
+                    wlan_scan_csv_writer.writerow(row_list)
+                else:
+                    continue
+        wlan_scan_file.close()
+    return
+
+def SRUMNetworkUsageActivity(session, csv_dir):
+    result = session.execute(sql.text('SELECT events_persisted.sid, events_persisted.payload from events_persisted inner join event_tags on events_persisted.full_event_name_hash = event_tags.full_event_name_hash inner join tag_descriptions on event_tags.tag_id = tag_descriptions.tag_id where (tag_descriptions.tag_id = 24 and events_persisted.full_event_name = "Microsoft.Windows.SrumSvc.DataUsageAggregateTimer")'))
+    network_usage_list = result.fetchall()
+
+    if len(network_usage_list) == 0:
+        print("Events associated with application network usage (from SRUM) not recorded in database. Will not create CSV.")
+    else:
+        print("{} events associated to App network usage found. Extracting and writing to CSV".format((len(network_usage_list))))
+
+        network_usage_file = open(os.path.join(csv_dir, "SRUM Application Network Usage.csv"), "w", newline='')
+        net_usage_csv_writer = csv.writer(network_usage_file, dialect='excel')
+
+        net_usage_csv_writer.writerow(["Event Recorded Timestamp (UTC)", "Application Name", "Bytes Sent", "Bytes Received", "Interface GUID", "SID"])
+
+        for event in network_usage_list:
+            row_list = []
+            temp_json = json.loads(event[1])
+            row_list.append(temp_json['time'].replace("T"," ").replace("Z", ""))
+            row_list.append(temp_json['data']['applicationName'])
+            row_list.append(temp_json['data']['bytesSent'])
+            row_list.append(temp_json['data']['bytesRecieved'])
+            row_list.append(temp_json['data']['interfaceGuid'])
+            row_list.append(event[0])
+            net_usage_csv_writer.writerow(row_list)
+        network_usage_file.close()
+    return
 
 if __name__=="__main__":
-
     event_transcript_parser=argparse.ArgumentParser(
     description='''EventTranscript.db parser by Abhiram Kumar.''',
     epilog= '''For any queries, please reach out to me via Twitter - @_abhiramkumar''')
     
     event_transcript_parser.add_argument('-f','--file', required=True, help="Please specify the path to EventTranscript.db")
     event_transcript_parser.add_argument('-o','--output-dir', required=True, help="Please specify the output directory")
+
+    args = event_transcript_parser.parse_args()
+
+    print("Windows Diagnostic Data - EventTranscript.db Parser\n")
     
-    parser, empty_list = event_transcript_parser.parse_known_args()
+    print("Author: Abhiram Kumar (Twitter: @_abhiramkumar)\nGitHub: https://github.com/stuxnet999/EventTranscriptParser")
+    print("-"*50 + "\n")
 
-
-    print("""\033[1;97m  _____                 _     _____                              _       _     ____                          
- | ____|_   _____ _ __ | |_  |_   _| __ __ _ _ __  ___  ___ _ __(_)_ __ | |_  |  _ \ __ _ _ __ ___  ___ _ __ 
- |  _| \ \ / / _ \ '_ \| __|   | || '__/ _` | '_ \/ __|/ __| '__| | '_ \| __| | |_) / _` | '__/ __|/ _ \ '__|
- | |___ \ V /  __/ | | | |_    | || | | (_| | | | \__ \ (__| |  | | |_) | |_  |  __/ (_| | |  \__ \  __/ |   
- |_____| \_/ \___|_| |_|\__|   |_||_|  \__,_|_| |_|___/\___|_|  |_| .__/ \__| |_|   \__,_|_|  |___/\___|_|   
-                                                                  |_|                                        \033[0m\n""")
-    
-    print("Author: Abhiram Kumar (Twitter: @_abhiramkumar)\nGithub: https://github.com/stuxnet999/EventTranscriptParser\n")
-    print("-"*50)
-
-    if os.path.exists(parser.file):
-        if not os.path.isdir(parser.output_dir):
-            os.makedirs(parser.output_dir)
-
-        BrowsingHistory = BrowserHistoryParse(parser.file)
-        df = pd.DataFrame(BrowsingHistory)
-        outfile = os.path.join(parser.output_dir, "BrowserHistory.csv")
-        df.to_csv(outfile, index=False) 
-        print ("Output written to " + os.path.abspath(outfile))
-
-        software_inventory = SoftwareInventory(parser.file)
-        df = pd.DataFrame(software_inventory)
-        outfile = os.path.join(parser.output_dir, "SoftwareInventory.csv")
-        df.to_csv(outfile, index=False)
-        print ("Output written to " + os.path.abspath(outfile))
-
-        WlanScan = WlanScanResults(parser.file)
-        df = pd.DataFrame(WlanScan)
-        outfile = os.path.join(parser.output_dir, "WlanScan.csv")
-        df.to_csv(outfile, index=False)
-        print ("Output written to " + os.path.abspath(outfile))
-
-        pnp_device = PnPDeviceParse(parser.file)
-        df = pd.DataFrame(pnp_device)
-        outfile = os.path.join(parser.output_dir, "PnpDeviceInstall.csv")
-        df.to_csv(outfile, index=False)
-        print ("Output written to " + os.path.abspath(outfile))
+    if os.path.exists(args.file):
+        if not os.path.isdir(args.output_dir):
+            os.makedirs(args.output_dir)
         
-        wificonnectedevents = WiFiConnectedEvents(parser.file)
-        df = pd.DataFrame(wificonnectedevents)
-        outfile = os.path.join(parser.output_dir, "WiFiConnectedEvents.csv")
-        df.to_csv(outfile, index=False)
-        print ("Output written to " + os.path.abspath(outfile))
+        db_path = args.file
+        out_dir = args.output_dir
+        engine = sql.create_engine('sqlite:///{}'.format(db_path))
+        Session = sql_orm.sessionmaker(engine)
+        session = Session()
 
-        outfile = os.path.join(parser.output_dir, "UserDefaults.txt")
-        userdefaults = UserDefault(parser.file, outfile)
-        print ("Output written to " + os.path.abspath(outfile))
-        userdefaults.close()
-            
-        outfile = os.path.join(parser.output_dir, "PhysicalDiskInfo.txt")
-        physical_disk_info = PhysicalDiskInfo(parser.file, outfile)
-        print ("Output written to " + os.path.abspath(outfile))
-        physical_disk_info.close()
-
-    else:
-        print(parser.print_help())
+        EdgeBrowsingHistory(session, out_dir)
+        ApplicationInventory(session, out_dir)
+        ApplicationExecution(session, out_dir)
+        UserDefaults(session, out_dir)
+        WiFiConnectedEvents(session, out_dir)
+        SRUMAppActivity(session, out_dir)
+        WLANScanResults(session, out_dir)
+        SRUMNetworkUsageActivity(session, out_dir)
