@@ -82,6 +82,12 @@ pyinstaller --onefile EventTranscriptParser.py
 
 You will find the compiled executable in the `dist` directory.
 
+### Demo video
+
+Here is a demo video of the usage of the tool.
+
+https://github.com/stuxnet999/EventTranscriptParser/assets/31406812/005aa288-0250-4143-aabf-7d711090ef83
+
 ### Acknowledgements
 
 This tool wouldn't have been possible without the excellent research & hard work put in by my colleagues [Andrew Rathbun](https://twitter.com/bunsofwrath12) & [Josh Mitchell](https://www.linkedin.com/in/josh-mitchell-0990ba6a/) in investigating the Windows Diagnostic Data.
